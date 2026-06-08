@@ -3,6 +3,7 @@ from .system import RunShellCommand, WriteFile
 from .file_ops import ReadFile, ListDirectory, Replace, Glob
 from .search import GrepSearch
 from .memory import UpdateMemory, UpdateProjectInstructions
+from .vector_memory import VectorMemory
 from .planning import Plan
 from .web import GoogleSearch, WebFetch
 from .browser import BrowserAutomation

@@ -9,7 +9,7 @@ from merlin.core.skills import SkillLoader
 from merlin.tools import (
     ToolRegistry, RunShellCommand, WriteFile, ReadFile, ListDirectory, GrepSearch,
     Replace, Glob, UpdateMemory, UpdateProjectInstructions, Plan,
-    GoogleSearch, WebFetch, DockerManager, SSHExec, CreateTool, BrowserAutomation
+    GoogleSearch, WebFetch, DockerManager, SSHExec, CreateTool, BrowserAutomation, VectorMemory
 )
 from merlin.tools.skills_tool import ActivateSkill
 from merlin.tools.orchestration import InvokeAgent
@@ -44,6 +44,7 @@ def main_cli():
     registry.register(DockerManager())
     registry.register(SSHExec())
     registry.register(BrowserAutomation())
+    registry.register(VectorMemory())
 
     # Load Skills
     loader = SkillLoader(registry)

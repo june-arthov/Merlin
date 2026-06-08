@@ -8,6 +8,7 @@ setup(
         "openai>=1.0.0",
         "rich",
         "playwright",
+        "chromadb",
     ],
     entry_points={
         "console_scripts": [
