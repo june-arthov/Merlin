@@ -3,12 +3,13 @@ from .base import BaseTool
 
 class UpdateMemory(BaseTool):
     @property
-    def name(self):
-        return "update_memory"
-
+    def name(self): return "update_memory"
+    
     @property
-    def description(self):
-        return "Updates the private MEMORY.md file with new information."
+    def category(self): return "memory"
+    
+    @property
+    def description(self): return "Updates the private MEMORY.md file with new information."
 
     @property
     def parameters(self):
@@ -24,7 +25,6 @@ class UpdateMemory(BaseTool):
     def execute(self, fact, category="general"):
         path = os.path.expanduser("~/.merlin/MEMORY.md")
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        
         try:
             with open(path, 'a', encoding='utf-8') as f:
                 f.write(f"\n- [{category}] {fact}")
@@ -34,12 +34,13 @@ class UpdateMemory(BaseTool):
 
 class UpdateProjectInstructions(BaseTool):
     @property
-    def name(self):
-        return "update_project_instructions"
-
+    def name(self): return "update_project_instructions"
+    
     @property
-    def description(self):
-        return "Updates the MERLIN.md file with repo-wide rules."
+    def category(self): return "memory"
+    
+    @property
+    def description(self): return "Updates the MERLIN.md file with repo-wide rules."
 
     @property
     def parameters(self):

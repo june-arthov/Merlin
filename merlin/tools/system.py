@@ -5,9 +5,12 @@ from .base import BaseTool
 class RunShellCommand(BaseTool):
     @property
     def name(self): return "run_shell_command"
+    
     @property
     def category(self): return "system"
-    # ... rest ...
+    
+    @property
+    def description(self): return "Executes a shell command and returns stdout/stderr."
 
     @property
     def parameters(self):
@@ -36,12 +39,13 @@ class RunShellCommand(BaseTool):
 
 class WriteFile(BaseTool):
     @property
-    def name(self):
-        return "write_file"
-
+    def name(self): return "write_file"
+    
     @property
-    def description(self):
-        return "Writes content to a file, creating directories if needed."
+    def category(self): return "system"
+    
+    @property
+    def description(self): return "Writes content to a file, creating directories if needed."
 
     @property
     def parameters(self):

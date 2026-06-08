@@ -3,12 +3,13 @@ from .base import BaseTool
 
 class Plan(BaseTool):
     @property
-    def name(self):
-        return "plan"
-
+    def name(self): return "plan"
+    
     @property
-    def description(self):
-        return "Writes a detailed implementation plan to a file. Use this before starting complex tasks."
+    def category(self): return "planning"
+    
+    @property
+    def description(self): return "Writes a detailed implementation plan to a file."
 
     @property
     def parameters(self):
