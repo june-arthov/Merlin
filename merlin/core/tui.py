@@ -13,225 +13,186 @@ from rich.table import Table
 from rich.text import Text
 from rich.markdown import Markdown
 from rich.align import Align
+from rich.box import ROUNDED, DOUBLE
 from ..tools import ToolRegistry
 
+# ASCII ART Header
+MERLIN_LOGO = """
+[bold gold1]███╗   ███╗███████╗██████╗ ██╗     ██╗███╗   ██╗[/bold gold1]
+[bold gold1]████╗ ████║██╔════╝██╔══██╗██║     ██║████╗  ██║[/bold gold1]
+[bold white]██╔████╔██║█████╗  ██████╔╝██║     ██║██╔██╗ ██║[/bold white]
+[bold white]██║╚██╔╝██║██╔══╝  ██╔══██╗██║     ██║██║╚██╗██║[/bold white]
+[bold cyan]██║ ╚═╝ ██║███████╗██║  ██║███████╗██║██║ ╚████║[/bold cyan]
+[bold cyan]╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═══╝[/bold cyan]
+"""
+
 class MerlinTUI:
-    def __init__(self, model, api_key, system_prompt, registry):
+    def __init__(self, model, api_key, system_prompt, registry, loader):
         self.model = model
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
-            default_headers={"HTTP-Referer": "https://github.com/june-arthov/Merlin", "X-Title": "MERLIN-TIER3-TUI"}
+            default_headers={"HTTP-Referer": "https://github.com/june-arthov/Merlin", "X-Title": "MERLIN-OS-TUI"}
         )
         self.system_prompt = system_prompt
         self.registry = registry
+        self.loader = loader # SkillLoader
         self.console = Console()
         self.layout = Layout()
-        self.history = [] # For UI display (role, content)
-        self.persistent_messages = [{"role": "system", "content": self.system_prompt}] # For LLM Context
+        self.history = []
+        self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
         self.logs = []
         self.status = "SYSTEM_READY"
         self.loops_active = False
         self.current_loop = 0
         self.max_loops = 10
         self.start_time = datetime.now()
+        self.token_usage = 0 # Dummy for now
 
-    def _init_layout(self):
-        self.layout.split_column(
-            Layout(name="header", size=3),
-            Layout(name="main"),
-            Layout(name="footer", size=3)
-        )
-        self.layout["main"].split_row(
-            Layout(name="chat", ratio=2),
-            Layout(name="sidebar", ratio=1)
-        )
-        self.layout["sidebar"].split_column(
-            Layout(name="stats", size=8),
-            Layout(name="logs"),
-            Layout(name="mandate", size=6)
-        )
-
-    def _get_header(self):
-        grid = Table.grid(expand=True)
-        grid.add_column(justify="left", ratio=1)
-        grid.add_column(justify="center", ratio=1)
-        grid.add_column(justify="right", ratio=1)
+    def _get_dashboard(self):
+        # Build Tools Grid
+        tools_table = Table.grid(expand=True)
+        tools_table.add_column(ratio=1)
         
-        grid.add_row(
-            Text("🧙‍♂️ MERLIN_OS", style="bold gold1"),
-            Text(f"COGNITIVE_PERSISTENCE: ON", style="bold green"),
-            Text(datetime.now().strftime("%H:%M:%S"), style="bold magenta")
-        )
-        return Panel(grid, style="gold1", border_style="gold1")
-
-    def _get_chat_panel(self):
-        chat_content = ""
-        # Show last 15 messages for a better chat feel
-        for role, content in self.history[-15:]:
-            if role == "user":
-                chat_content += f"[bold green]USER > [/bold green]{content}\n"
-            elif role == "assistant":
-                clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
-                if clean_text:
-                    chat_content += f"[bold gold1]MERLIN > [/bold gold1]{clean_text}\n"
-            elif role == "system_log":
-                chat_content += f"[dim italic magenta]LOG: {content}[/dim italic magenta]\n"
+        # Group tools by category
+        categories = {}
+        for name, tool in self.registry.tools.items():
+            cat = getattr(tool, 'category', 'general')
+            if cat not in categories: categories[cat] = []
+            categories[cat].append(name)
         
-        return Panel(chat_content, title="[bold cyan]NEURAL_LINK[/bold cyan]", border_style="cyan", padding=(1, 1))
+        for cat, tools in sorted(categories.items()):
+            tools_table.add_row(f"[bold cyan]{cat}:[/bold cyan] [white]{', '.join(tools)}[/white]")
 
-    def _get_stats_panel(self):
-        table = Table.grid(expand=True)
-        uptime = str(datetime.now() - self.start_time).split(".")[0]
-        table.add_row("[cyan]MODEL:[/cyan]", f"[white]{self.model}[/white]")
-        table.add_row("[cyan]UPTIME:[/cyan]", f"[white]{uptime}[/white]")
-        table.add_row("[cyan]CTX_LEN:[/cyan]", f"[white]{len(self.persistent_messages)} TURNS[/white]")
-        table.add_row("[cyan]LOOPS:[/cyan]", f"[white]{self.current_loop}/{self.max_loops if self.loops_active else '-'}[/white]")
-        return Panel(table, title="[bold cyan]SYSTEM_STATS[/bold cyan]", border_style="cyan")
+        # Build Skills Grid
+        skills_table = Table.grid(expand=True)
+        skills_table.add_column(ratio=1)
+        # Skills are directory names in available_skills
+        if self.loader.available_skills:
+            # Grouping dummy for now, just list them
+            skills_table.add_row(f"[bold magenta]available:[/bold magenta] [white]{', '.join(self.loader.available_skills.keys())}[/white]")
+        else:
+            skills_table.add_row("[dim]No specialized skills detected.[/dim]")
 
-    def _get_logs_panel(self):
-        log_text = "\n".join(self.logs[-15:])
-        return Panel(log_text, title="[bold yellow]EXECUTION_LOGS[/bold yellow]", border_style="yellow")
+        # Sidebar Stats
+        sidebar = Table.grid(expand=True, padding=(0, 1))
+        sidebar.add_row(f"[bold white]{self.model}[/bold white]")
+        sidebar.add_row(f"[dim]{os.getcwd()}[/dim]")
+        sidebar.add_row(f"Session: [dim]{datetime.now().strftime('%Y%m%d_%H%M%S')}[/dim]")
 
-    def _get_mandate_panel(self):
-        text = Text("IDENTITY: GRAY_HAT\nPROTOCOL: IHSAN\nTARGET: EXCELLENCE\nHALLUCINATION: ZERO", style="italic magenta")
-        return Panel(Align.center(text, vertical="middle"), title="[bold magenta]MANDATE[/bold magenta]", border_style="magenta")
+        # Assemble Main Box
+        main_grid = Table.grid(expand=True)
+        main_grid.add_column(width=40) # Logo area
+        main_grid.add_column(ratio=1) # Info area
+        
+        # ASCII Image Placeholder (Simplified from text art or can be real ASCII)
+        logo_area = f"\n{MERLIN_LOGO}\n"
+        
+        info_area = Table.grid(expand=True)
+        info_area.add_row("[bold white]Available Tools[/bold white]")
+        info_area.add_row(tools_table)
+        info_area.add_row("")
+        info_area.add_row("[bold white]Available Skills[/bold white]")
+        info_area.add_row(skills_table)
+        info_area.add_row("")
+        info_area.add_row(f"[bold gold1]{len(self.registry.tools)} tools · {len(self.loader.available_skills)} skills · /help for commands[/bold gold1]")
 
-    def _get_footer(self):
-        return Panel(f"[bold white]STATUS:[/bold white] [bold {self._get_status_color()}]{self.status}[/bold {self._get_status_color()}] | [dim]Press Ctrl+C to exit[/dim]", border_style="white")
+        main_grid.add_row(logo_area, info_area)
 
-    def _get_status_color(self):
-        if "READY" in self.status: return "green"
-        if "BUSY" in self.status or "LOOP" in self.status: return "yellow"
-        if "ERROR" in self.status: return "red"
-        return "white"
+        return Panel(main_grid, title=f"Merlin OS Agent v3.0.0 ({datetime.now().strftime('%Y.%m.%d')})", border_style="grey50", box=ROUNDED)
 
-    def refresh(self):
-        self.layout["header"].update(self._get_header())
-        self.layout["chat"].update(self._get_chat_panel())
-        self.layout["stats"].update(self._get_stats_panel())
-        self.layout["logs"].update(self._get_logs_panel())
-        self.layout["mandate"].update(self._get_mandate_panel())
-        self.layout["footer"].update(self._get_footer())
+    def _get_status_bar(self):
+        uptime = int((datetime.now() - self.start_time).total_seconds())
+        # ctx_bar = "[████████░░░░]"
+        ctx_bar = "[░░░░░░░░░░]" # Progress bar style
+        status_line = f" ⚕ {self.model} │ ctx {len(self.persistent_messages)} │ {ctx_bar} -- │ {uptime}s │ ⏲ 0s"
+        return Text(status_line, style="bold white on grey11")
 
-    def log(self, message):
-        self.logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
+    def show_startup(self):
+        self.console.print(self._get_dashboard())
+        self.console.print("\n[bold white]Welcome to Merlin OS! Type your message or /help for commands.[/bold white]")
+        self.console.print("✦ [dim]Tip: Merlin Tier-3 is operating with Grey Hat & Ihsan protocols active.[/dim]\n")
 
-    def run_task(self, task, live):
-        self.status = "NEURAL_PULSE_ACTIVE"
-        self.loops_active = True
-        self.current_loop = 0
+    def run_task(self, task):
         self.history.append(("user", task))
         self.persistent_messages.append({"role": "user", "content": task})
         
-        for i in range(self.max_loops):
-            self.current_loop = i + 1
-            self.status = f"THINKING_L{i+1}"
-            self.refresh()
-            
-            try:
-                response = self.client.chat.completions.create(model=self.model, messages=self.persistent_messages)
-                content = response.choices[0].message.content or ""
-                
-                # Keep assistant content in persistent messages
-                self.persistent_messages.append({"role": "assistant", "content": content})
-                
-                # If assistant only called tools, add a system log so user knows he's thinking
-                clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
-                if not clean_text and "<" in content:
-                    self.history.append(("assistant", "[italic dim]Neural pathways established. Executing tools...[/italic dim]"))
-                else:
-                    self.history.append(("assistant", content))
-                
-                # Parse tools
-                pattern = r'<(p?)(?P<name>\w+)(?P<attrs>[^/>]*)(?:/>|>(?P<content>.*?)</(?P=name)>)'
-                calls = []
-                for match in re.finditer(pattern, content, re.DOTALL):
-                    tool_name = match.group('name')
-                    attrs_str = match.group('attrs')
-                    inner = match.group('content').strip() if match.group('content') else ""
+        with Live(self._get_status_bar(), refresh_per_second=4, transient=True) as live:
+            for i in range(self.max_loops):
+                self.current_loop = i + 1
+                try:
+                    response = self.client.chat.completions.create(model=self.model, messages=self.persistent_messages)
+                    content = response.choices[0].message.content or ""
+                    self.persistent_messages.append({"role": "assistant", "content": content})
                     
-                    if tool_name not in self.registry.tools and tool_name != "done":
-                        continue
-                    
-                    params = {}
-                    attr_pattern = r'(\w+)="([^"]*)"'
-                    for attr_match in re.finditer(attr_pattern, attrs_str):
-                        params[attr_match.group(1)] = attr_match.group(2)
-                    
-                    if inner:
-                        if tool_name == "write_file": params["content"] = inner
-                        elif tool_name == "run_shell_command" and not params.get("command"): params["command"] = inner
-                    
-                    calls.append((tool_name, params))
+                    # Print reasoning/content immediately
+                    clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
+                    if clean_text:
+                        self.console.print(f"[bold gold1]MERLIN > [/bold gold1]{clean_text}")
+                    elif "<" in content:
+                        self.console.print("[dim italic]Neural processing... executing tools.[/dim italic]")
 
-                if not calls:
-                    self.status = "COGNITIVE_READY"
+                    # Parse and exec tools
+                    pattern = r'<(p?)(?P<name>\w+)(?P<attrs>[^/>]*)(?:/>|>(?P<content>.*?)</(?P=name)>)'
+                    calls = []
+                    for match in re.finditer(pattern, content, re.DOTALL):
+                        tool_name = match.group('name')
+                        if tool_name in self.registry.tools or tool_name == "done":
+                            attrs_str = match.group('attrs')
+                            params = {}
+                            for am in re.finditer(r'(\w+)="([^"]*)"', attrs_str):
+                                params[am.group(1)] = am.group(2)
+                            inner = match.group('content').strip() if match.group('content') else ""
+                            if inner:
+                                if tool_name == "write_file": params["content"] = inner
+                                elif tool_name == "run_shell_command" and not params.get("command"): params["command"] = inner
+                            calls.append((tool_name, params))
+
+                    if not calls: break
+
+                    feedback = []
+                    for t_name, t_params in calls:
+                        if t_name == "done":
+                            self.console.print(f"[bold green]✔ MISSION ACCOMPLISHED:[/bold green] {t_params.get('summary', 'Task complete.')}")
+                            return True
+                        
+                        self.console.print(f"[bold cyan]EXEC:[/bold cyan] [italic]{t_name}[/italic]")
+                        tool = self.registry.get_tool(t_name)
+                        if tool:
+                            res = tool.execute(**t_params)
+                            if t_name == "activate_skill" and "instructions" in res:
+                                self.persistent_messages.append({"role": "system", "content": f"<activated_skill name=\"{t_params['skill_name']}\">{res['instructions']}</activated_skill>"})
+                            feedback.append(f"Tool {t_name} returned:\n{json.dumps(res, indent=2)}")
+                        else:
+                            feedback.append(f"Error: Tool {t_name} not found.")
+
+                    if feedback:
+                        self.persistent_messages.append({"role": "user", "content": "\n\n".join(feedback)})
+
+                except Exception as e:
+                    self.console.print(f"[bold red]CRITICAL ERROR:[/bold red] {str(e)}")
                     break
-
-                feedback = []
-                for t_name, t_params in calls:
-                    if t_name == "done":
-                        self.status = "TASK_COMPLETED"
-                        self.log(f"DONE: {t_params.get('summary', 'Complete')}")
-                        self.refresh()
-                        time.sleep(1)
-                        self.loops_active = False
-                        return
-
-                    self.status = f"EXECUTING_{t_name.upper()}"
-                    self.log(f"EXEC: {t_name}")
-                    self.refresh()
-                    
-                    tool = self.registry.get_tool(t_name)
-                    if tool:
-                        res = tool.execute(**t_params)
-                        if "error" in res:
-                            self.log(f"ERROR: {t_name}")
-                        
-                        if t_name == "activate_skill" and "instructions" in res:
-                            self.persistent_messages.append({"role": "system", "content": f"<activated_skill name=\"{t_params['skill_name']}\">{res['instructions']}</activated_skill>"})
-                            self.log(f"SKILL_INJECTED: {t_params['skill_name']}")
-                        
-                        feedback.append(f"Tool {t_name} returned:\n{json.dumps(res, indent=2)}")
-                    else:
-                        feedback.append(f"Error: Tool {tool_name} not found.")
-
-                if feedback:
-                    self.persistent_messages.append({"role": "user", "content": "\n\n".join(feedback)})
-
-            except Exception as e:
-                self.status = "CORE_ERROR"
-                self.log(f"FATAL: {str(e)}")
-                self.refresh()
-                time.sleep(3)
-                break
-        
-        self.status = "SYSTEM_READY"
-        self.loops_active = False
-        self.refresh()
 
     def start_shell(self):
-        self._init_layout()
         self.console.clear()
+        self.show_startup()
         
-        with Live(self.layout, refresh_per_second=10, screen=True) as live:
-            while True:
-                self.refresh()
-                live.stop()
-                try:
-                    task = self.console.input("[bold gold1]YOU > [/bold gold1]")
-                    if task.lower() in ["exit", "quit", "bye"]:
-                        self.console.print("[bold red]Shutting down Merlin-OS...[/bold red]")
-                        break
-                    if task.lower() == "/clear":
-                        self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
-                        self.history = []
-                        self.log("CONTEXT_CLEARED")
-                        live.start()
-                        continue
-                except KeyboardInterrupt:
-                    break
+        while True:
+            try:
+                self.console.print(self._get_status_bar())
+                task = self.console.input("[bold cyan]❯ [/bold cyan]")
                 
-                live.start()
-                self.run_task(task, live)
+                if task.lower() in ["exit", "quit", "bye"]:
+                    self.console.print("[bold red]Deactivating Merlin-OS...[/bold red]")
+                    break
+                if task.lower() == "/clear":
+                    self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
+                    self.console.clear()
+                    self.show_startup()
+                    continue
+                if not task.strip(): continue
+                
+                self.run_task(task)
+                self.console.print("-" * self.console.width, style="grey15")
+            except KeyboardInterrupt:
+                break

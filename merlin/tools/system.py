@@ -4,12 +4,10 @@ from .base import BaseTool
 
 class RunShellCommand(BaseTool):
     @property
-    def name(self):
-        return "run_shell_command"
-
+    def name(self): return "run_shell_command"
     @property
-    def description(self):
-        return "Executes a shell command and returns stdout/stderr."
+    def category(self): return "system"
+    # ... rest ...
 
     @property
     def parameters(self):

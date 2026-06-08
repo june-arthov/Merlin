@@ -4,23 +4,21 @@ from abc import ABC, abstractmethod
 class BaseTool(ABC):
     @property
     @abstractmethod
-    def name(self):
-        pass
+    def name(self): pass
 
     @property
     @abstractmethod
-    def description(self):
-        pass
+    def description(self): pass
+
+    @property
+    def category(self): return "general" # Default category
 
     @property
     @abstractmethod
-    def parameters(self):
-        """Returns JSON schema of parameters."""
-        pass
+    def parameters(self): pass
 
     @abstractmethod
-    def execute(self, **kwargs):
-        pass
+    def execute(self, **kwargs): pass
 
 class ToolRegistry:
     def __init__(self):

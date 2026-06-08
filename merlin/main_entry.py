@@ -75,7 +75,7 @@ def main_cli():
 
     task = args.task
     if not task:
-        tui = MerlinTUI(args.model, api_key, system_prompt, registry)
+        tui = MerlinTUI(args.model, api_key, system_prompt, registry, loader)
         tui.start_shell()
     else:
         engine = MerlinEngine(args.model, api_key, system_prompt)
