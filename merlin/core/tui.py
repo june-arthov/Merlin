@@ -82,11 +82,11 @@ class MerlinTUI:
 
         # Assemble Main Box
         main_grid = Table.grid(expand=True)
-        main_grid.add_column(width=40) # Logo area
+        main_grid.add_column(width=52) # Logo area
         main_grid.add_column(ratio=1) # Info area
         
-        # ASCII Image Placeholder (Simplified from text art or can be real ASCII)
-        logo_area = f"\n{MERLIN_LOGO}\n"
+        # ASCII Image
+        logo_area = Text.from_markup(f"\n{MERLIN_LOGO}\n", justify="left")
         
         info_area = Table.grid(expand=True)
         info_area.add_row("[bold white]Available Tools[/bold white]")

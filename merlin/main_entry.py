@@ -46,9 +46,21 @@ def main_cli():
 
     # Load Skills
     loader = SkillLoader(registry)
-    loader.load_skills(".merlin/skills")
-    # Also load from global location if exists
-    loader.load_skills(os.path.expanduser("~/.merlin/skills"))
+    
+    # 1. Load from project local if exists
+    if os.path.exists(".merlin/skills"):
+        loader.load_skills(".merlin/skills")
+        
+    # 2. Load from global user directory
+    global_skills = os.path.expanduser("~/.merlin/skills")
+    if os.path.exists(global_skills):
+        loader.load_skills(global_skills)
+        
+    # 3. Load from package directory (builtin skills)
+    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    builtin_skills = os.path.join(package_dir, ".merlin", "skills")
+    if os.path.exists(builtin_skills):
+        loader.load_skills(builtin_skills)
 
     # Register Special Tools
     registry.register(ActivateSkill(loader))
