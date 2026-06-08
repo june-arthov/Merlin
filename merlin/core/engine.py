@@ -63,7 +63,13 @@ class MerlinEngine:
             {"role": "user", "content": task}
         ]
 
-        self.console.print(Panel(f"[bold green]TASK:[/bold green] {task}", title="MERLIN TIER-3"))
+        # System Header
+        header = f"[bold gold1]MERLIN OS[/bold gold1] [bold white]v3.0.0[/bold white] | [cyan]Tier-3 Sovereign[/cyan]\n"
+        header += f"[dim]Model: {self.model}[/dim]\n"
+        header += f"[dim]Brain: OpenRouter Intelligence Wrapper[/dim]"
+        
+        self.console.print(Panel(header, border_style="gold1"))
+        self.console.print(Panel(f"[bold green]ACTIVE TASK:[/bold green] {task}\n[dim italic]Moral Compass: Gray Hat & Ihsan Protocol Active[/dim]", title="MISSION CONTROL", border_style="green"))
 
         for i in range(max_loops):
             self.console.print(f"\n[bold blue]Loop {i+1}/{max_loops}[/bold blue] - Consulting Oracle...")
