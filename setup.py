@@ -7,6 +7,7 @@ setup(
     install_requires=[
         "openai>=1.0.0",
         "rich",
+        "playwright",
     ],
     entry_points={
         "console_scripts": [

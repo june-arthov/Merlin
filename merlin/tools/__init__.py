@@ -5,5 +5,6 @@ from .search import GrepSearch
 from .memory import UpdateMemory, UpdateProjectInstructions
 from .planning import Plan
 from .web import GoogleSearch, WebFetch
+from .browser import BrowserAutomation
 from .deploy_ops import DockerManager, SSHExec
 from .architect import CreateTool
