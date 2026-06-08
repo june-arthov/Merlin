@@ -69,7 +69,7 @@ class MerlinEngine:
         header += f"[dim]Brain: OpenRouter Intelligence Wrapper[/dim]"
         
         self.console.print(Panel(header, border_style="gold1"))
-        self.console.print(Panel(f"[bold green]ACTIVE TASK:[/bold green] {task}\n[dim italic]Moral Compass: Gray Hat & Ihsan Protocol Active[/dim]", title="MISSION CONTROL", border_style="green"))
+        self.console.print(Panel(f"[bold green]ACTIVE TASK:[/bold green] {task}\n[dim][italic]Moral Compass: Gray Hat & Ihsan Protocol Active[/italic][/dim]", title="MISSION CONTROL", border_style="green"))
 
         for i in range(max_loops):
             self.console.print(f"\n[bold blue]Loop {i+1}/{max_loops}[/bold blue] - Consulting Oracle...")
