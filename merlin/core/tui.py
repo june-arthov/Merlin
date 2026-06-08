@@ -110,8 +110,8 @@ class MerlinTUI:
 
     def show_startup(self):
         self.console.print(self._get_dashboard())
-        self.console.print("\n[bold white]Welcome to Merlin OS! Type your message or /help for commands.[/bold white]")
-        self.console.print("✦ [dim]Tip: Merlin Tier-3 is operating with Grey Hat & Ihsan protocols active.[/dim]\n")
+        self.console.print("\n[bold white]Welcome to Merlin OS! Type your command to initiate link, or /help for system manual.[/bold white]")
+        self.console.print("✦ [dim]System Tip: Sovereign Node is active. Operating under deep-system directives.[/dim]\n")
 
     def run_task(self, task):
         self.history.append(("user", task))
