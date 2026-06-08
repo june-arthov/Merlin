@@ -52,4 +52,19 @@ Implement these core tools:
 - [x] `self_evolution`: Skill for Merlin to improve its own source code.
 - [x] `documentation`: Automated documentation skill.
 - [x] Initial Core Test Suite in `tests/`.
-- [x] Transformation complete: Merlin-CLI is now a full Tier-3 Framework.
+
+## Phase 10-15: Visual & Package Hardening
+- [x] Modular Package Structure (`main_entry.py`, `__init__.py`).
+- [x] Global Installation Support (`setup.py` & `merlin` command).
+- [x] Cyberpunk TUI Overhaul (Rich Layouts, Live Monitor).
+- [x] Model Routing (`openrouter/free` failover logic).
+
+## Phase 16: Immersive Dashboard (Singularity UI)
+- [x] Full-screen interactive shell.
+- [x] Real-time Execution Logs panel.
+- [x] Persistent System Stats & Mandate tracking.
+
+## Phase 17: Dynamic Tool Synthesis (Architect Mode)
+- [ ] `create_tool`: Tool for Merlin to write and register new tools at runtime.
+- [ ] `architect_mode`: Protocol for self-expanding capabilities.
+- [ ] Tool sandbox verification before registration.

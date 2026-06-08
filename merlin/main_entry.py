@@ -53,6 +53,7 @@ def main_cli():
     # Register Special Tools
     registry.register(ActivateSkill(loader))
     registry.register(InvokeAgent(args.model, api_key))
+    registry.register(CreateTool(registry))
 
 
     # Load Context
