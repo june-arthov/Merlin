@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 from merlin.core.engine import MerlinEngine
+from merlin.core.tui import MerlinTUI
 from merlin.core.prompts import build_system_prompt
 from merlin.core.skills import SkillLoader
 from merlin.tools import (
@@ -73,8 +74,10 @@ def main_cli():
 
     task = args.task
     if not task:
-        print("Merlin-CLI Tier-3 Active. Enter your task:")
-        task = input("> ")
-
-    print(f"[MERLIN] Model: {args.model}")
-    engine.run(task, max_loops=args.loops)
+        tui = MerlinTUI(args.model, api_key, system_prompt, registry)
+        tui.start_shell()
+    else:
+        engine = MerlinEngine(args.model, api_key, system_prompt)
+        engine.registry = registry 
+        print(f"[MERLIN] Model: {args.model}")
+        engine.run(task, max_loops=args.loops)
