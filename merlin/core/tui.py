@@ -73,27 +73,32 @@ class MerlinTUI:
             in_tag = False
             tag_buffer = ""
             
+            import sys
             async for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    text = chunk.choices[0].delta.content
-                    content += text
-                    
-                    # Very simple logic to hide XML tags from being streamed to the console
-                    for char in text:
-                        if char == '<':
-                            in_tag = True
-                            tag_buffer += char
-                        elif char == '>':
-                            in_tag = False
-                            tag_buffer += char
-                            # We don't print the tag buffer
-                            tag_buffer = ""
-                        elif in_tag:
-                            tag_buffer += char
-                        else:
-                            self.console.print(char, end="")
+                if chunk.choices and len(chunk.choices) > 0:
+                    # OpenRouter async stream handling
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content is not None:
+                        text = delta.content
+                        content += text
+                        
+                        # Very simple logic to hide XML tags from being streamed to the console
+                        for char in text:
+                            if char == '<':
+                                in_tag = True
+                                tag_buffer += char
+                            elif char == '>':
+                                in_tag = False
+                                tag_buffer += char
+                                # We don't print the tag buffer
+                                tag_buffer = ""
+                            elif in_tag:
+                                tag_buffer += char
+                            else:
+                                sys.stdout.write(char)
+                                sys.stdout.flush()
             
-            self.console.print() # Newline after streaming
+            print() # Newline after streaming
             self.persistent_messages.append({"role": "assistant", "content": content})
             
             # Parse tools
