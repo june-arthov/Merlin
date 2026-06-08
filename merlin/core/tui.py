@@ -128,9 +128,9 @@ class MerlinTUI:
                     # Print reasoning/content immediately
                     clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
                     if clean_text:
-                        self.console.print(f"[bold gold1]MERLIN > [/bold gold1]{clean_text}")
+                        self.console.print(f"\n[bold gold1]MERLIN > [/bold gold1]{clean_text}")
                     elif "<" in content:
-                        self.console.print("[dim italic]Neural processing... executing tools.[/dim italic]")
+                        self.console.print("\n[dim italic]Neural processing... executing tools.[/dim italic]")
 
                     # Parse and exec tools
                     pattern = r'<(p?)(?P<name>\w+)(?P<attrs>[^/>]*)(?:/>|>(?P<content>.*?)</(?P=name)>)'
@@ -153,10 +153,10 @@ class MerlinTUI:
                     feedback = []
                     for t_name, t_params in calls:
                         if t_name == "done":
-                            self.console.print(f"[bold green]✔ MISSION ACCOMPLISHED:[/bold green] {t_params.get('summary', 'Task complete.')}")
+                            self.console.print(f"\n[bold green]✔ MISSION ACCOMPLISHED:[/bold green] {t_params.get('summary', 'Task complete.')}")
                             return True
                         
-                        self.console.print(f"[bold cyan]EXEC:[/bold cyan] [italic]{t_name}[/italic]")
+                        self.console.print(f"\n[bold cyan]EXEC:[/bold cyan] [italic]{t_name}[/italic]")
                         tool = self.registry.get_tool(t_name)
                         if tool:
                             res = tool.execute(**t_params)
