@@ -7,7 +7,8 @@ from merlin.core.prompts import build_system_prompt
 from merlin.core.skills import SkillLoader
 from merlin.tools import (
     ToolRegistry, RunShellCommand, WriteFile, ReadFile, ListDirectory, GrepSearch,
-    Replace, Glob, UpdateMemory, UpdateProjectInstructions, Plan
+    Replace, Glob, UpdateMemory, UpdateProjectInstructions, Plan,
+    GoogleSearch, WebFetch, DockerManager, SSHExec
 )
 from merlin.tools.skills_tool import ActivateSkill
 from merlin.tools.orchestration import InvokeAgent
