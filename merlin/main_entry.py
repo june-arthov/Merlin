@@ -18,7 +18,7 @@ from merlin.utils.context import load_project_instructions, load_memory, load_ma
 def main_cli():
     parser = argparse.ArgumentParser(description="MERLIN-CLI Tier-3 Sovereign Agent")
     parser.add_argument("task", nargs="?", help="Task to execute")
-    parser.add_argument("-m", "--model", default="openrouter/free", help="LLM Model")
+    parser.add_argument("-m", "--model", default="google/gemma-2-9b-it:free", help="LLM Model")
     parser.add_argument("--loops", type=int, default=10, help="Max execution loops")
     args = parser.parse_args()
 
