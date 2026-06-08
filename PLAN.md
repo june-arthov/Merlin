@@ -59,12 +59,14 @@ Implement these core tools:
 - [x] Cyberpunk TUI Overhaul (Rich Layouts, Live Monitor).
 - [x] Model Routing (`openrouter/free` failover logic).
 
-## Phase 16: Immersive Dashboard (Singularity UI)
-- [x] Full-screen interactive shell.
-- [x] Real-time Execution Logs panel.
-- [x] Persistent System Stats & Mandate tracking.
+## Phase 16-26: UX Evolution & Reversion
+- [x] Full-screen Cyberpunk Dashboard (Tested).
+- [x] Reversion to Gemini-Style Minimalist CLI for stability.
+- [x] Resolution of terminal overlapping issues.
 
-## Phase 17: Dynamic Tool Synthesis (Architect Mode)
-- [ ] `create_tool`: Tool for Merlin to write and register new tools at runtime.
-- [ ] `architect_mode`: Protocol for self-expanding capabilities.
-- [ ] Tool sandbox verification before registration.
+## Phase 27: The Radical Singularity (Gemini Parity)
+- [ ] **Async Core**: Rewrite `MerlinEngine` and `MerlinTUI` using `asyncio` and `AsyncOpenAI`.
+- [ ] **Live Streaming**: Implement real-time token streaming so Merlin "types" out responses.
+- [ ] **Background Processes**: Upgrade `run_shell_command` to support `is_background` for long-running servers.
+- [ ] **Concurrent Tools**: Allow Merlin to execute multiple read/search operations simultaneously.
+

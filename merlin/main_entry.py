@@ -88,9 +88,11 @@ def main_cli():
     task = args.task
     if not task:
         tui = MerlinTUI(args.model, api_key, system_prompt, registry, loader)
-        tui.start_shell()
+        import asyncio
+        asyncio.run(tui.start_shell())
     else:
         engine = MerlinEngine(args.model, api_key, system_prompt)
         engine.registry = registry 
         print(f"[MERLIN] Model: {args.model}")
-        engine.run(task, max_loops=args.loops)
+        import asyncio
+        asyncio.run(engine.run(task, max_loops=args.loops))

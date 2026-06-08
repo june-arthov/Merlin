@@ -1,7 +1,8 @@
 import os
 import json
 import re
-from openai import OpenAI
+import asyncio
+from openai import AsyncOpenAI
 from rich.console import Console
 from rich.markdown import Markdown
 from ..tools import ToolRegistry
@@ -9,10 +10,10 @@ from ..tools import ToolRegistry
 class MerlinTUI:
     def __init__(self, model, api_key, system_prompt, registry, loader):
         self.model = model
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
-            default_headers={"HTTP-Referer": "https://github.com/june-arthov/Merlin", "X-Title": "MERLIN-CLI"}
+            default_headers={"HTTP-Referer": "https://github.com/june-arthov/Merlin", "X-Title": "MERLIN-CLI-ASYNC"}
         )
         self.system_prompt = system_prompt
         self.registry = registry
@@ -21,50 +22,81 @@ class MerlinTUI:
         self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
         self.max_loops = 10
 
-    def start_shell(self):
+    async def start_shell(self):
         self.console.clear()
-        self.console.print("[bold cyan]Merlin-CLI[/bold cyan] [dim]v3.0.0[/dim]")
-        self.console.print(f"[dim]Model: {self.model} | Mode: Sovereign Interactive[/dim]\n")
+        self.console.print("╭─────────────────────────────────────────────────────────────────────────────╮", style="dim")
+        self.console.print("│ 🧙‍♂️ [bold gold1]MERLIN-OS[/bold gold1] v3.0.0-Singularity (Async Streaming Active)               │")
+        self.console.print(f"│ [dim]Model: {self.model}[/dim]{' ' * max(0, 56 - len(self.model))}│")
+        self.console.print("╰─────────────────────────────────────────────────────────────────────────────╯", style="dim")
+        self.console.print("✦ [dim]Welcome to the Singularity. Type your task or /help.[/dim]\n")
         
         while True:
             try:
-                task = self.console.input("[bold green]>[/bold green] ")
+                task = self.console.input("[bold green]❯ [/bold green]")
                 if task.lower() in ["exit", "quit", "bye"]:
+                    self.console.print("[dim]Terminating connection...[/dim]")
                     break
                 if task.lower() == "/clear":
                     self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
-                    self.console.print("[dim]Conversation history cleared.[/dim]\n")
+                    self.console.print("[dim]Neural link reset.[/dim]\n")
                     continue
                 if not task.strip():
                     continue
                 
-                self.run_task(task)
-                self.console.print() # Empty line for spacing
-            except KeyboardInterrupt:
+                await self.run_task(task)
                 self.console.print()
-                break
+            except KeyboardInterrupt:
+                self.console.print("\n[dim]Task interrupted.[/dim]\n")
+            except Exception as e:
+                self.console.print(f"\n[bold red]System Error:[/bold red] {e}\n")
 
-    def run_task(self, task):
+    async def run_task(self, task):
         self.persistent_messages.append({"role": "user", "content": task})
         
         for i in range(self.max_loops):
-            # 1. Show thinking spinner while waiting for LLM
-            with self.console.status("[bold cyan]Thinking...[/bold cyan]", spinner="dots"):
+            content = ""
+            
+            # Show a thinking status
+            with self.console.status(f"[dim cyan]Consulting Oracle (Loop {i+1})...[/dim cyan]", spinner="dots"):
                 try:
-                    response = self.client.chat.completions.create(model=self.model, messages=self.persistent_messages)
-                    content = response.choices[0].message.content or ""
+                    response = await self.client.chat.completions.create(
+                        model=self.model, 
+                        messages=self.persistent_messages,
+                        stream=True
+                    )
                 except Exception as e:
                     self.console.print(f"[bold red]API Error:[/bold red] {str(e)}")
                     return
 
+            # Stream the response
+            self.console.print("[bold gold1]MERLIN > [/bold gold1]", end="")
+            in_tag = False
+            tag_buffer = ""
+            
+            async for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    content += text
+                    
+                    # Very simple logic to hide XML tags from being streamed to the console
+                    for char in text:
+                        if char == '<':
+                            in_tag = True
+                            tag_buffer += char
+                        elif char == '>':
+                            in_tag = False
+                            tag_buffer += char
+                            # We don't print the tag buffer
+                            tag_buffer = ""
+                        elif in_tag:
+                            tag_buffer += char
+                        else:
+                            self.console.print(char, end="")
+            
+            self.console.print() # Newline after streaming
             self.persistent_messages.append({"role": "assistant", "content": content})
             
-            # 2. Print conversational text (Markdown)
-            clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
-            if clean_text:
-                self.console.print(Markdown(clean_text))
-
-            # 3. Parse tools
+            # Parse tools
             pattern = r'<(p?)(?P<name>\w+)(?P<attrs>[^/>]*)(?:/>|>(?P<content>.*?)</(?P=name)>)'
             calls = []
             for match in re.finditer(pattern, content, re.DOTALL):
@@ -83,29 +115,29 @@ class MerlinTUI:
             if not calls:
                 break
 
-            # 4. Execute tools
+            # Execute tools
             feedback = []
             for t_name, t_params in calls:
                 if t_name == "done":
                     summary = t_params.get('summary', 'Task complete.')
-                    self.console.print(f"✅ [bold green]Done:[/bold green] {summary}")
+                    self.console.print(f"✅ [bold green]DONE:[/bold green] {summary}")
                     return
                 
-                self.console.print(f"⚙️  [dim cyan]Tool Call:[/dim cyan] [bold]{t_name}[/bold]")
+                self.console.print(f"⚡ [bold cyan]EXEC:[/bold cyan] [dim]{t_name}[/dim]")
                 tool = self.registry.get_tool(t_name)
                 if tool:
-                    # Show spinner while tool executes
-                    with self.console.status(f"[dim]Executing {t_name}...[/dim]", spinner="dots"):
+                    with self.console.status(f"[dim]Executing {t_name}...[/dim]", spinner="bouncingBar"):
+                        # Tools are currently synchronous
                         res = tool.execute(**t_params)
                         
                     if t_name == "activate_skill" and "instructions" in res:
                         self.persistent_messages.append({"role": "system", "content": f"<activated_skill name=\"{t_params['skill_name']}\">{res['instructions']}</activated_skill>"})
-                        self.console.print(f"✨ [dim magenta]Skill Activated:[/dim magenta] {t_params['skill_name']}")
+                        self.console.print(f"✨ [bold magenta]SKILL_ACTIVATED:[/bold magenta] {t_params['skill_name']}")
                     
                     feedback.append(f"Tool {t_name} returned:\n{json.dumps(res, indent=2)}")
                 else:
                     feedback.append(f"Error: Tool {t_name} not found.")
-                    self.console.print(f"❌ [bold red]Error:[/bold red] Tool {t_name} not found.")
+                    self.console.print(f"❌ [bold red]ERROR:[/bold red] Tool {t_name} not found.")
 
             if feedback:
                 self.persistent_messages.append({"role": "user", "content": "\n\n".join(feedback)})

@@ -18,22 +18,35 @@ class RunShellCommand(BaseTool):
             "type": "object",
             "properties": {
                 "command": {"type": "string", "description": "Command to execute."},
-                "cwd": {"type": "string", "description": "Working directory."}
+                "cwd": {"type": "string", "description": "Working directory."},
+                "is_background": {"type": "boolean", "description": "Run in background."}
             },
             "required": ["command"]
         }
 
-    def execute(self, command, cwd=None):
+    def execute(self, command, cwd=None, is_background=False):
         try:
-            result = subprocess.run(
-                command, shell=True, cwd=cwd or os.getcwd(),
-                capture_output=True, text=True, timeout=300
-            )
-            output = result.stdout + "\n" + result.stderr
-            return {
-                "exit_code": result.returncode,
-                "output": output.strip()
-            }
+            if is_background:
+                # Run in background without waiting
+                process = subprocess.Popen(
+                    command, shell=True, cwd=cwd or os.getcwd(),
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                return {
+                    "status": "background process started",
+                    "pid": process.pid,
+                    "command": command
+                }
+            else:
+                result = subprocess.run(
+                    command, shell=True, cwd=cwd or os.getcwd(),
+                    capture_output=True, text=True, timeout=300
+                )
+                output = result.stdout + "\n" + result.stderr
+                return {
+                    "exit_code": result.returncode,
+                    "output": output.strip()
+                }
         except Exception as e:
             return {"error": str(e)}
 
