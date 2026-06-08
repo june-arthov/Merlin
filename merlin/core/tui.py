@@ -21,11 +21,44 @@ class MerlinTUI:
         self.console = Console()
         self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
         self.max_loops = 10
+        
+        # Priority list of fast/free models to hunt if the default fails
+        self.fallback_models = [
+            self.model,
+            "qwen/qwen-2-7b-instruct:free",
+            "microsoft/phi-3-mini-128k-instruct:free",
+            "meta-llama/llama-3-8b-instruct:free",
+            "google/gemma-7b-it:free",
+            "openrouter/free"
+        ]
+
+    async def _test_model(self, model_name):
+        try:
+            # Quick ping to test if model is alive
+            response = await self.client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1
+            )
+            return True
+        except Exception:
+            return False
 
     async def start_shell(self):
         self.console.clear()
         self.console.print("╭─────────────────────────────────────────────────────────────────────────────╮", style="dim")
         self.console.print("│ 🧙‍♂️ [bold gold1]MERLIN-OS[/bold gold1] v3.0.0-Singularity (Async Streaming Active)               │")
+        
+        # Auto-Hunter Logic
+        with self.console.status("[dim cyan]Hunting for active neural node...[/dim cyan]", spinner="dots"):
+            active_model = self.model
+            for m in self.fallback_models:
+                if await self._test_model(m):
+                    active_model = m
+                    break
+            if active_model != self.model:
+                self.model = active_model
+
         self.console.print(f"│ [dim]Model: {self.model}[/dim]{' ' * max(0, 56 - len(self.model))}│")
         self.console.print("╰─────────────────────────────────────────────────────────────────────────────╯", style="dim")
         self.console.print("✦ [dim]Welcome to the Singularity. Type your task or /help.[/dim]\n")
