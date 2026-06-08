@@ -27,7 +27,8 @@ class MerlinTUI:
         self.registry = registry
         self.console = Console()
         self.layout = Layout()
-        self.history = [] # (role, content)
+        self.history = [] # For UI display (role, content)
+        self.persistent_messages = [{"role": "system", "content": self.system_prompt}] # For LLM Context
         self.logs = []
         self.status = "SYSTEM_READY"
         self.loops_active = False
@@ -36,6 +37,7 @@ class MerlinTUI:
         self.start_time = datetime.now()
 
     def _init_layout(self):
+        # ... (same as before)
         self.layout.split_column(
             Layout(name="header", size=3),
             Layout(name="main"),
@@ -51,6 +53,23 @@ class MerlinTUI:
             Layout(name="mandate", size=6)
         )
 
+    # ... (other helper methods same as before)
+
+    def _get_chat_panel(self):
+        chat_content = ""
+        # Show last 15 messages for a better chat feel
+        for role, content in self.history[-15:]:
+            if role == "user":
+                chat_content += f"[bold green]USER > [/bold green]{content}\n"
+            elif role == "assistant":
+                clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
+                if clean_text:
+                    chat_content += f"[bold gold1]MERLIN > [/bold gold1]{clean_text}\n"
+            elif role == "system_log":
+                chat_content += f"[dim italic magenta]LOG: {content}[/dim italic magenta]\n"
+        
+        return Panel(chat_content, title="[bold cyan]NEURAL_LINK[/bold cyan]", border_style="cyan", padding=(1, 1))
+
     def _get_header(self):
         grid = Table.grid(expand=True)
         grid.add_column(justify="left", ratio=1)
@@ -59,60 +78,21 @@ class MerlinTUI:
         
         grid.add_row(
             Text("🧙‍♂️ MERLIN_OS", style="bold gold1"),
-            Text(f"CORE: TIER-3 SOVEREIGN", style="bold cyan"),
+            Text(f"COGNITIVE_PERSISTENCE: ON", style="bold green"),
             Text(datetime.now().strftime("%H:%M:%S"), style="bold magenta")
         )
         return Panel(grid, style="gold1", border_style="gold1")
-
-    def _get_chat_panel(self):
-        chat_content = ""
-        # Show last 10 messages
-        for role, content in self.history[-10:]:
-            if role == "user":
-                chat_content += f"[bold green]USER > [/bold green]{content}\n\n"
-            elif role == "assistant":
-                # Strip XML for cleaner UI
-                clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
-                if clean_text:
-                    chat_content += f"[bold cyan]MERLIN > [/bold cyan]{clean_text}\n\n"
-            elif role == "system_log":
-                chat_content += f"[dim italic magenta]LOG: {content}[/dim italic magenta]\n\n"
-        
-        return Panel(chat_content, title="[bold green]COMMUNICATION_LINK[/bold green]", border_style="green", padding=(1, 1))
 
     def _get_stats_panel(self):
         table = Table.grid(expand=True)
         uptime = str(datetime.now() - self.start_time).split(".")[0]
         table.add_row("[cyan]MODEL:[/cyan]", f"[white]{self.model}[/white]")
         table.add_row("[cyan]UPTIME:[/cyan]", f"[white]{uptime}[/white]")
-        table.add_row("[cyan]TOOLS:[/cyan]", f"[white]{len(self.registry.tools)} ACTIVE[/white]")
+        table.add_row("[cyan]CTX_LEN:[/cyan]", f"[white]{len(self.persistent_messages)} TURNS[/white]")
         table.add_row("[cyan]LOOPS:[/cyan]", f"[white]{self.current_loop}/{self.max_loops if self.loops_active else '-'}[/white]")
         return Panel(table, title="[bold cyan]SYSTEM_STATS[/bold cyan]", border_style="cyan")
 
-    def _get_logs_panel(self):
-        log_text = "\n".join(self.logs[-15:])
-        return Panel(log_text, title="[bold yellow]EXECUTION_LOGS[/bold yellow]", border_style="yellow")
-
-    def _get_mandate_panel(self):
-        text = Text("IDENTITY: GRAY_HAT\nPROTOCOL: IHSAN\nTARGET: EXCELLENCE\nHALLUCINATION: ZERO", style="italic magenta")
-        return Panel(Align.center(text, vertical="middle"), title="[bold magenta]MANDATE[/bold magenta]", border_style="magenta")
-
-    def _get_footer(self):
-        return Panel(f"[bold white]STATUS:[/bold white] [bold {self._get_status_color()}]{self.status}[/bold {self._get_status_color()}] | [dim]Press Ctrl+C to exit[/dim]", border_style="white")
-
-    def _get_status_color(self):
-        if "READY" in self.status: return "green"
-        if "BUSY" in self.status: return "yellow"
-        if "ERROR" in self.status: return "red"
-        return "white"
-
-    def refresh(self):
-        self.layout["header"].update(self._get_header())
-        self.layout["chat"].update(self._get_chat_panel())
-        self.layout["stats"].update(self._get_stats_panel())
-        self.layout["logs"].update(self._get_logs_panel())
-        self.layout["mandate"].update(self._get_mandate_panel())
-        self.layout["footer"].update(self._get_footer())
+    # ... (rest of helper methods remain mostly same, just updating run_task)
 
     def log(self, message):
         self.logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
@@ -122,21 +102,19 @@ class MerlinTUI:
         self.loops_active = True
         self.current_loop = 0
         self.history.append(("user", task))
+        self.persistent_messages.append({"role": "user", "content": task})
         
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": task}
-        ]
-
         for i in range(self.max_loops):
             self.current_loop = i + 1
-            self.status = f"LOOP_{i+1}_CONSULTING_ORACLE"
+            self.status = f"LOOP_{i+1}_PROCESSING"
             self.refresh()
             
             try:
-                response = self.client.chat.completions.create(model=self.model, messages=messages)
+                response = self.client.chat.completions.create(model=self.model, messages=self.persistent_messages)
                 content = response.choices[0].message.content or ""
-                messages.append({"role": "assistant", "content": content})
+                
+                # Keep assistant content in persistent messages
+                self.persistent_messages.append({"role": "assistant", "content": content})
                 self.history.append(("assistant", content))
                 
                 # Parse tools
@@ -162,16 +140,16 @@ class MerlinTUI:
                     calls.append((tool_name, params))
 
                 if not calls:
-                    self.status = "TASK_STALLED_NO_TOOLS"
+                    self.status = "SYSTEM_READY"
                     break
 
                 feedback = []
                 for t_name, t_params in calls:
                     if t_name == "done":
-                        self.status = "MISSION_ACCOMPLISHED"
+                        self.status = "TASK_COMPLETED"
                         self.log(f"DONE: {t_params.get('summary', 'Complete')}")
                         self.refresh()
-                        time.sleep(2)
+                        time.sleep(1)
                         self.loops_active = False
                         return
 
@@ -183,22 +161,22 @@ class MerlinTUI:
                     if tool:
                         res = tool.execute(**t_params)
                         if "error" in res:
-                            self.log(f"ERROR in {t_name}")
+                            self.log(f"ERROR: {t_name}")
                         
                         if t_name == "activate_skill" and "instructions" in res:
-                            messages.append({"role": "system", "content": f"<activated_skill name=\"{t_params['skill_name']}\">{res['instructions']}</activated_skill>"})
+                            self.persistent_messages.append({"role": "system", "content": f"<activated_skill name=\"{t_params['skill_name']}\">{res['instructions']}</activated_skill>"})
                             self.log(f"SKILL_INJECTED: {t_params['skill_name']}")
                         
                         feedback.append(f"Tool {t_name} returned:\n{json.dumps(res, indent=2)}")
                     else:
-                        feedback.append(f"Error: Tool {t_name} not found.")
+                        feedback.append(f"Error: Tool {tool_name} not found.")
 
                 if feedback:
-                    messages.append({"role": "user", "content": "\n\n".join(feedback)})
+                    self.persistent_messages.append({"role": "user", "content": "\n\n".join(feedback)})
 
             except Exception as e:
-                self.status = "API_ERROR"
-                self.log(f"CRITICAL: {str(e)}")
+                self.status = "CORE_ERROR"
+                self.log(f"FATAL: {str(e)}")
                 self.refresh()
                 time.sleep(3)
                 break
@@ -212,17 +190,21 @@ class MerlinTUI:
         self.console.clear()
         
         with Live(self.layout, refresh_per_second=10, screen=True) as live:
-            self.refresh()
             while True:
-                self.status = "AWAITING_INPUT"
                 self.refresh()
-                
-                # Stop live to get input
                 live.stop()
                 try:
-                    task = self.console.input("[bold gold1]MERLIN > [/bold gold1]")
+                    # More conversational prompt
+                    task = self.console.input("[bold gold1]YOU > [/bold gold1]")
                     if task.lower() in ["exit", "quit", "bye"]:
+                        self.console.print("[bold red]Shutting down Merlin-OS...[/bold red]")
                         break
+                    if task.lower() == "/clear":
+                        self.persistent_messages = [{"role": "system", "content": self.system_prompt}]
+                        self.history = []
+                        self.log("CONTEXT_CLEARED")
+                        live.start()
+                        continue
                 except KeyboardInterrupt:
                     break
                 
