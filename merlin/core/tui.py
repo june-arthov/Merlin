@@ -37,7 +37,6 @@ class MerlinTUI:
         self.start_time = datetime.now()
 
     def _init_layout(self):
-        # ... (same as before)
         self.layout.split_column(
             Layout(name="header", size=3),
             Layout(name="main"),
@@ -53,7 +52,18 @@ class MerlinTUI:
             Layout(name="mandate", size=6)
         )
 
-    # ... (other helper methods same as before)
+    def _get_header(self):
+        grid = Table.grid(expand=True)
+        grid.add_column(justify="left", ratio=1)
+        grid.add_column(justify="center", ratio=1)
+        grid.add_column(justify="right", ratio=1)
+        
+        grid.add_row(
+            Text("🧙‍♂️ MERLIN_OS", style="bold gold1"),
+            Text(f"COGNITIVE_PERSISTENCE: ON", style="bold green"),
+            Text(datetime.now().strftime("%H:%M:%S"), style="bold magenta")
+        )
+        return Panel(grid, style="gold1", border_style="gold1")
 
     def _get_chat_panel(self):
         chat_content = ""
@@ -70,19 +80,6 @@ class MerlinTUI:
         
         return Panel(chat_content, title="[bold cyan]NEURAL_LINK[/bold cyan]", border_style="cyan", padding=(1, 1))
 
-    def _get_header(self):
-        grid = Table.grid(expand=True)
-        grid.add_column(justify="left", ratio=1)
-        grid.add_column(justify="center", ratio=1)
-        grid.add_column(justify="right", ratio=1)
-        
-        grid.add_row(
-            Text("🧙‍♂️ MERLIN_OS", style="bold gold1"),
-            Text(f"COGNITIVE_PERSISTENCE: ON", style="bold green"),
-            Text(datetime.now().strftime("%H:%M:%S"), style="bold magenta")
-        )
-        return Panel(grid, style="gold1", border_style="gold1")
-
     def _get_stats_panel(self):
         table = Table.grid(expand=True)
         uptime = str(datetime.now() - self.start_time).split(".")[0]
@@ -92,13 +89,36 @@ class MerlinTUI:
         table.add_row("[cyan]LOOPS:[/cyan]", f"[white]{self.current_loop}/{self.max_loops if self.loops_active else '-'}[/white]")
         return Panel(table, title="[bold cyan]SYSTEM_STATS[/bold cyan]", border_style="cyan")
 
-    # ... (rest of helper methods remain mostly same, just updating run_task)
+    def _get_logs_panel(self):
+        log_text = "\n".join(self.logs[-15:])
+        return Panel(log_text, title="[bold yellow]EXECUTION_LOGS[/bold yellow]", border_style="yellow")
+
+    def _get_mandate_panel(self):
+        text = Text("IDENTITY: GRAY_HAT\nPROTOCOL: IHSAN\nTARGET: EXCELLENCE\nHALLUCINATION: ZERO", style="italic magenta")
+        return Panel(Align.center(text, vertical="middle"), title="[bold magenta]MANDATE[/bold magenta]", border_style="magenta")
+
+    def _get_footer(self):
+        return Panel(f"[bold white]STATUS:[/bold white] [bold {self._get_status_color()}]{self.status}[/bold {self._get_status_color()}] | [dim]Press Ctrl+C to exit[/dim]", border_style="white")
+
+    def _get_status_color(self):
+        if "READY" in self.status: return "green"
+        if "BUSY" in self.status or "LOOP" in self.status: return "yellow"
+        if "ERROR" in self.status: return "red"
+        return "white"
+
+    def refresh(self):
+        self.layout["header"].update(self._get_header())
+        self.layout["chat"].update(self._get_chat_panel())
+        self.layout["stats"].update(self._get_stats_panel())
+        self.layout["logs"].update(self._get_logs_panel())
+        self.layout["mandate"].update(self._get_mandate_panel())
+        self.layout["footer"].update(self._get_footer())
 
     def log(self, message):
         self.logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
 
     def run_task(self, task, live):
-        self.status = "BUSY_THINKING"
+        self.status = "NEURAL_PULSE_ACTIVE"
         self.loops_active = True
         self.current_loop = 0
         self.history.append(("user", task))
@@ -106,7 +126,7 @@ class MerlinTUI:
         
         for i in range(self.max_loops):
             self.current_loop = i + 1
-            self.status = f"LOOP_{i+1}_PROCESSING"
+            self.status = f"THINKING_L{i+1}"
             self.refresh()
             
             try:
@@ -115,7 +135,13 @@ class MerlinTUI:
                 
                 # Keep assistant content in persistent messages
                 self.persistent_messages.append({"role": "assistant", "content": content})
-                self.history.append(("assistant", content))
+                
+                # If assistant only called tools, add a system log so user knows he's thinking
+                clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
+                if not clean_text and "<" in content:
+                    self.history.append(("assistant", "[italic dim]Neural pathways established. Executing tools...[/italic dim]"))
+                else:
+                    self.history.append(("assistant", content))
                 
                 # Parse tools
                 pattern = r'<(p?)(?P<name>\w+)(?P<attrs>[^/>]*)(?:/>|>(?P<content>.*?)</(?P=name)>)'
@@ -140,7 +166,7 @@ class MerlinTUI:
                     calls.append((tool_name, params))
 
                 if not calls:
-                    self.status = "SYSTEM_READY"
+                    self.status = "COGNITIVE_READY"
                     break
 
                 feedback = []
@@ -194,7 +220,6 @@ class MerlinTUI:
                 self.refresh()
                 live.stop()
                 try:
-                    # More conversational prompt
                     task = self.console.input("[bold gold1]YOU > [/bold gold1]")
                     if task.lower() in ["exit", "quit", "bye"]:
                         self.console.print("[bold red]Shutting down Merlin-OS...[/bold red]")
